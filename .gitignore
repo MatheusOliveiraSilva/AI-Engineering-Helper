@@ -1,2 +1,8 @@
 
 .env
+
+llm_config/__pycache__/
+
+documents/
+
+*.pyc
