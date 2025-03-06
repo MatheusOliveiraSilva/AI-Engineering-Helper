@@ -1,3 +1,5 @@
+import os
+
 from preprocessment.chunking.content_aware_chunking import ContentAwareChunking
 from vector_database.pinecone_utils import PineconeUtils
 from langchain_community.document_loaders import DirectoryLoader
