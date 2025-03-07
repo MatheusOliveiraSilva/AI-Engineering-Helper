@@ -1,0 +1,31 @@
+/* style.css */
+.centered {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 100px;
+}
+
+/* Força a cor preta em todos os estados do link */
+.login-button:link,
+.login-button:visited,
+.login-button:hover,
+.login-button:active {
+    color: #000000; /* Texto em preto */
+    text-decoration: none;
+}
+
+.login-button {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    margin-top: 1rem;
+    background-color: #2E86C1; /* cor de fundo (azul) */
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.login-button:hover {
+    background-color: #1A5276; /* cor de fundo ao passar mouse */
+}

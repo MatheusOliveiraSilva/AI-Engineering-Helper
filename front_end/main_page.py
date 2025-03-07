@@ -1,16 +1,21 @@
 import streamlit as st
+import os
 from streamlit_javascript import st_javascript
-import time
 from chatbot.graph.chatbot_graph import graph
 from front_end.utils.message_utils import stream_assistant_response
 
-# URL da API de autenticação (ajuste conforme necessário)
 API_URL = "http://localhost:8000"
 
-# --- Leitura do Cookie "sub" ---
-raw_cookies = st_javascript("document.cookie")
+# Read CSS login style
+css_path = os.path.join(os.path.dirname(__file__), "styles", "login_style.css")
+with open(css_path, "r") as f:
+    css_content = f.read()
 
-# Parse da string de cookies
+# Apply CSS to the login page
+st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
+
+# Manage to see if user have cookies that show they are logged in
+raw_cookies = st_javascript("document.cookie")
 cookies_dict = {}
 if raw_cookies:
     for cookie_pair in raw_cookies.split(";"):
@@ -21,46 +26,47 @@ if raw_cookies:
 
 user_sub = cookies_dict.get("sub")
 
-# Se não estiver logado, exibe tela de login
+# If user is not logged in, show login page
 if not user_sub:
-    st.title("Login Necessário")
-    st.write("Você precisa fazer login para acessar o app.")
-    st.markdown(f"[Fazer Login]({API_URL}/auth/login)")
+    st.markdown(
+        f"""
+        <div class="centered">
+            <h1>AI Engineering Q&A</h1>
+            <h3>You need to login first</h3>
+            <a href="{API_URL}/auth/login" class="login-button">Login</a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     st.stop()
 
-# --- Se o cookie 'sub' existe, prossegue para a aplicação principal ---
+# If user if logged in, we proceed to application
 st.title("AI Engineering Q&A")
-st.write(f"Bem-vindo!")
+st.write(f"Bem-vindo, {user_sub}")
 
-# Exemplo de configuração de memória e thread
+# Simple memory config
 memory_config = {"configurable": {"thread_id": "1"}}
 
-# Inicializa históricos, se necessário
 if "messages" not in st.session_state:
-    st.session_state["messages"] = []
+    st.session_state.messages = []
 if "thoughts" not in st.session_state:
-    st.session_state["thoughts"] = ""
+    st.session_state.thoughts = ""
 
-# Exibe o histórico de mensagens no chat
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Se já houver pensamentos salvos, exibe-os em um expander (colapsado)
 if st.session_state.thoughts:
     with st.expander("Model Thoughts", expanded=False):
         st.markdown(st.session_state.thoughts)
 
-# Captura a entrada do usuário
+# Get the user input in chat box.
 if prompt := st.chat_input("Chat with me"):
-    # Adiciona a mensagem do usuário ao histórico
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Cria o container de mensagem do assistente e chama a função de streaming
     with st.chat_message("assistant"):
         final_response = stream_assistant_response(prompt, graph, memory_config)
 
-    # Armazena a resposta final no histórico
     st.session_state.messages.append({"role": "assistant", "content": final_response})
