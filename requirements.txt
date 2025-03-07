@@ -27,3 +27,11 @@ langchain_pinecone
 pinecone-text
 pinecone-notebooks
 streamlit
+fastapi
+sqlalchemy
+psycopg2-binary
+pydantic
+streamlit_javascript
+authlib
+starlette
+itsdangerous
