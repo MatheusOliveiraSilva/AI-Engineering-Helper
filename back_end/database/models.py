@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
 import datetime
 
-DATABASE_URL = "postgresql://matheus:password@localhost/users_chat_history"
+DATABASE_URL = "postgresql://matheussilva:password@localhost/users_chat_history"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
