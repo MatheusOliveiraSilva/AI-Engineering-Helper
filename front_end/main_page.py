@@ -42,7 +42,10 @@ if not user_sub:
 
 # If user if logged in, we proceed to application
 st.title("AI Engineering Q&A")
-st.write(f"Bem-vindo, {user_sub}")
+
+if "messages" in st.session_state:
+    if len(st.session_state.messages) <= 0:
+        st.write(f"Welcome! Q&A me about AI Engineering")
 
 # Simple memory config
 memory_config = {"configurable": {"thread_id": "1"}}
