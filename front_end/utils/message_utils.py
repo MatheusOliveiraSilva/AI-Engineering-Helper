@@ -58,22 +58,31 @@ def stream_assistant_response(prompt, graph, memory_config) -> str:
 
     return final_response
 
+from langchain_core.messages import HumanMessage, AIMessage
+
 def convert_messages_to_save(messages):
     """
-    Convert messages to save in the session state.
+    Converte a lista de mensagens do LangChain em um formato customizado:
+      1) 'user' (HumanMessage)
+      2) 'assistant_thought' (AIMessage)
+      3) 'assistant_response' (AIMessage)
 
-    :param
-      - messages: list of messages to convert.
-
-    :return
-      - messages_to_save: list of messages to save in the session state.
+    Presume que para cada bloco de 3 mensagens, a 2ª seja um pensamento
+    interno e a 3ª seja a resposta final do assistente.
     """
     messages_to_save = []
+    i = 0
+    n = len(messages)
 
-    for message in messages:
-        if isinstance(message, HumanMessage):
-            messages_to_save.append(["user", message.content])
-        elif isinstance(message, AIMessage):
-            messages_to_save.append(["assistant", message.content])
+    while i < n:
+        if i % 3 == 0:
+            messages_to_save.append(["user", messages[i].content])
+            i += 1
+        elif i % 3 == 1:
+            messages_to_save.append(["assistant_thought", messages[i].content])
+            i += 1
+        elif i % 3 == 2:
+            messages_to_save.append(["assistant_response", messages[i].content])
+            i += 1
 
     return messages_to_save
