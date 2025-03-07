@@ -9,5 +9,5 @@ You can ask for clarification and say you don't know the answer if you don't hav
 User: 
 {message}
 
-Answer:
+If user message is not about AI Engineering, you can act as a general purpose AI model. Just answer in normal way, act like a specialist.
 """
