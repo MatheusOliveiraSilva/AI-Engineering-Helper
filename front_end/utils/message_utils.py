@@ -1,6 +1,6 @@
 import time
 import streamlit as st
-from langchain_core.messages import HumanMessage, AIMessageChunk
+from langchain_core.messages import HumanMessage, AIMessageChunk, AIMessage
 
 def stream_assistant_response(prompt, graph, memory_config) -> str:
     """
@@ -57,3 +57,23 @@ def stream_assistant_response(prompt, graph, memory_config) -> str:
         time.sleep(0.3)
 
     return final_response
+
+def convert_messages_to_save(messages):
+    """
+    Convert messages to save in the session state.
+
+    :param
+      - messages: list of messages to convert.
+
+    :return
+      - messages_to_save: list of messages to save in the session state.
+    """
+    messages_to_save = []
+
+    for message in messages:
+        if isinstance(message, HumanMessage):
+            messages_to_save.append(["user", message.content])
+        elif isinstance(message, AIMessage):
+            messages_to_save.append(["assistant", message.content])
+
+    return messages_to_save
