@@ -75,7 +75,11 @@ class HybridSearchRetriever:
         # and finally save it to a file, so we can re-use in other retriever loadings:
         bm25_encoder.dump("bm25_values.json")
 
-        return BM25Encoder().load("bm25_values.json")
+        encoder = BM25Encoder().load("bm25_values.json")
+
+        # delete .json
+        os.remove("bm25_values.json")
+        return encoder
 
     def retrieve(self, query: str) -> List[Document]:
         """
