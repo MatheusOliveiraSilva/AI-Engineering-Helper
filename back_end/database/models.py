@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.dialects.postgresql import JSONB
 import datetime
 
 DATABASE_URL = "postgresql://matheussilva:password@localhost/users_chat_history"
@@ -24,15 +25,22 @@ class UserSession(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
-    # Relação para facilitar acesso ao usuário associado
     user = relationship("User", backref="sessions")
 
 class ConversationThread(Base):
+    """
+    Agora possui:
+    - messages (JSONB): lista de mensagens (ex.: [("user", "Olá"), ("assistant", "Oi, tudo bem?")])
+    - last_used: armazena a última vez em que a conversa foi atualizada (para ordenação)
+    - session_id + thread_id continuam como antes
+    """
     __tablename__ = "conversation_threads"
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String(255), ForeignKey('user_sessions.session_id', ondelete='CASCADE'), nullable=False, index=True)
+    session_id = Column(String(255), ForeignKey("user_sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
     thread_id = Column(String(255), nullable=False)
+    messages = Column(JSONB, default=[])  # Armazena o histórico completo
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    last_used = Column(DateTime, default=datetime.datetime.utcnow)
 
 def init_db():
     Base.metadata.create_all(bind=engine)
