@@ -2,11 +2,13 @@ import streamlit as st
 import os
 import uuid
 from streamlit_javascript import st_javascript
+import requests
+
 from chatbot.graph.chatbot_graph import graph
-from front_end.utils.message_utils import stream_assistant_response
+from front_end.utils.message_utils import stream_assistant_response, convert_messages_to_save
 
 # -------------------------------------------------------------------
-# 1. Configuração da página (deve ser o primeiro comando Streamlit)
+# 1. Configuração da página
 # -------------------------------------------------------------------
 st.set_page_config(layout="wide")
 
@@ -15,9 +17,8 @@ st.set_page_config(layout="wide")
 # -------------------------------------------------------------------
 sidebar_style = """
 <style>
-/* Força a largura da barra lateral */
 [data-testid="stSidebar"] > div:first-child {
-    width: 200px; /* Ajuste conforme desejar */
+    width: 200px;
 }
 [data-testid="stSidebar"][aria-expanded="true"] > div:first-child {
     width: 200px;
@@ -30,7 +31,7 @@ sidebar_style = """
 st.markdown(sidebar_style, unsafe_allow_html=True)
 
 # -------------------------------------------------------------------
-# 3. CSS de login (carregado de um arquivo externo, opcional)
+# 3. (Opcional) CSS de login externo
 # -------------------------------------------------------------------
 css_path = os.path.join(os.path.dirname(__file__), "styles", "login_style.css")
 if os.path.exists(css_path):
@@ -39,10 +40,11 @@ if os.path.exists(css_path):
     st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------------
-# 4. Lógica de login via cookie "sub"
+# 4. Variáveis e Lógica de Login
 # -------------------------------------------------------------------
 API_URL = "http://localhost:8000"
 
+# Lê cookies via JavaScript
 raw_cookies = st_javascript("document.cookie")
 cookies_dict = {}
 if raw_cookies:
@@ -53,9 +55,10 @@ if raw_cookies:
             cookies_dict[key] = value
 
 user_sub = cookies_dict.get("sub")
+session_token = cookies_dict.get("session_token")
 
+# Se não estiver logado, exibe tela de login
 if not user_sub:
-    # Caso não esteja logado, exibe tela de login
     st.markdown(
         f"""
         <div class="centered">
@@ -69,11 +72,10 @@ if not user_sub:
     st.stop()
 
 # -------------------------------------------------------------------
-# 5. Barra Lateral: Conversas e botão "New Chat"
+# 5. Barra Lateral: "Conversations" e Botão "New Chat"
 # -------------------------------------------------------------------
 st.sidebar.title("Conversations")
 
-# Botão para criar um novo chat
 if st.sidebar.button("New Chat"):
     st.session_state.messages = []
     st.session_state.thread_id = None
@@ -81,11 +83,11 @@ if st.sidebar.button("New Chat"):
     st.rerun()
 
 # -------------------------------------------------------------------
-# 6. Lógica Principal da Aplicação
+# 6. Lógica Principal do Chat
 # -------------------------------------------------------------------
 st.title("AI Engineering Q&A")
 
-# Inicializa estados se não existirem
+# Inicializa estados
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "thread_id" not in st.session_state:
@@ -93,36 +95,64 @@ if "thread_id" not in st.session_state:
 if "thoughts" not in st.session_state:
     st.session_state.thoughts = ""
 
-# Exibe histórico de mensagens
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# Exibe histórico de mensagens atual (local)
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-# Exibe Model Thoughts se houver
+# Exibe Model Thoughts (se existirem)
 if st.session_state.thoughts:
     with st.expander("Model Thoughts", expanded=False):
         st.markdown(st.session_state.thoughts)
 
-# Captura a entrada do usuário
+# Caixa de input do usuário
 prompt = st.chat_input("Chat with me")
 
 if prompt:
-    # Se ainda não tiver thread_id, gera um
+    # Se ainda não existe thread_id, cria a conversa no back-end c/ a primeira mensagem
     if st.session_state.thread_id is None:
-        st.session_state.thread_id = str(uuid.uuid4())
+        # Gera um thread_id único
+        st.session_state.thread_id = (session_token or "") + str(uuid.uuid4())
 
-    # Config de memória (exemplo)
-    #memory_config = {"configurable": {"thread_id": st.session_state.thread_id}}
-    memory_config = {"configurable": {"thread_id": "front1"}}
+        # Envia para POST /conversation com a 1ª mensagem
+        payload_create = {
+            "session_id": session_token,
+            "thread_id": st.session_state.thread_id,
+            "first_message_role": "user",
+            "first_message_content": prompt
+        }
+        resp = requests.post(f"{API_URL}/conversation", json=payload_create)
+        if resp.status_code != 200:
+            st.error("Erro ao criar conversa no servidor.")
+    else:
+        # Apenas adiciona localmente a msg do user
+        st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # Mensagem do usuário
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    # Exibe a mensagem no chat
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Resposta do LLM
+    # Gera a resposta do LLM
+    memory_config = {"configurable": {"thread_id": st.session_state.thread_id}}
     with st.chat_message("assistant"):
         final_response = stream_assistant_response(prompt, graph, memory_config)
 
-    # Armazena no histórico
+    # Salva a resposta no histórico local
     st.session_state.messages.append({"role": "assistant", "content": final_response})
+
+    # -------------------------------------------------------------------
+    # Agora salvamos TODO o histórico no back-end
+    # -------------------------------------------------------------------
+
+    # 1) Obtemos o histórico completo da Graph
+    full_msg_objects = graph.get_state(memory_config).values["messages"]
+    converted_history = convert_messages_to_save(full_msg_objects)
+
+    # 3) PATCH /conversation, enviando a lista completa
+    update_payload = {
+        "thread_id": st.session_state.thread_id,
+        "messages": converted_history
+    }
+    resp2 = requests.patch(f"{API_URL}/conversation", json=update_payload)
+    if resp2.status_code != 200:
+        st.error("Erro ao atualizar conversa no servidor.")
