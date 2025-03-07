@@ -228,13 +228,9 @@ def update_conversation(data: ConversationUpdate, db: Session = Depends(get_db))
 
 @app.get("/conversation")
 def get_conversations(session_token: str, db: Session = Depends(get_db)):
-    """
-    Retorna todas as conversas relacionadas ao session_token,
-    ordenadas por last_used desc (opcional).
-    """
     convs = db.query(ConversationThread).filter(
         ConversationThread.session_id == session_token
-    ).order_by(ConversationThread.last_used.desc()).all()
+    ).order_by(ConversationThread.created_at.asc()).all()
 
     return {
         "conversations": [
@@ -249,3 +245,5 @@ def get_conversations(session_token: str, db: Session = Depends(get_db)):
             for conv in convs
         ]
     }
+
+
