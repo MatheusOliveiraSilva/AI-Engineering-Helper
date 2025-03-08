@@ -42,17 +42,12 @@ class ChatbotsNodes:
             additional_kwargs={"cache-control": {"type": "ephemeral"}}
         )
 
-        print("---"*50 + "\nestá sendo promptado: ", [sys_msg] + state["messages"])
         response = self.llm.invoke([sys_msg] + state["messages"])
-
-        print("---"*50 + "\nstate messages: ", state["messages"])
-        print("---"*50 + "\nraw response: ", response)
 
         thinking = response.content[0]["thinking"] if "thinking" in response.content[0] else ""
         text = response.content[1]["text"] if "text" in response.content[1] else ""
 
         state["messages"].extend([AIMessage(content=thinking), AIMessage(content=text)])
 
-        print("---"*50 + "\nfinal state: ", state["messages"])
         # claude 3.7 response looks like [{thinking:..., text:....}], and we spect a dict in front end, so...
         return {"thinking": thinking, "text": text}

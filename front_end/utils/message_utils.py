@@ -7,14 +7,6 @@ def stream_assistant_response(prompt, graph, memory_config) -> str:
     Stream assistant answer displaying thoughts in real time and, when the final
     answer starts, replacing thoughts with an expander. Returns the final generated
     answer.
-
-    :param
-      - prompt: string with users input.
-      - graph: compiled langgraph's graph object.
-      - memory_config: memory configuration.
-
-    :return
-      - final_response: String with final answer
     """
     final_response = ""
     streaming_thoughts = ""
@@ -58,17 +50,14 @@ def stream_assistant_response(prompt, graph, memory_config) -> str:
 
     return final_response
 
-from langchain_core.messages import HumanMessage, AIMessage
-
-def convert_messages_to_save(messages):
+def convert_messages_to_save(messages: list) -> list:
     """
-    Converte a lista de mensagens do LangChain em um formato customizado:
+    Convert the messages list to a list of lists with the following structure:
       1) 'user' (HumanMessage)
       2) 'assistant_thought' (AIMessage)
       3) 'assistant_response' (AIMessage)
 
-    Presume que para cada bloco de 3 mensagens, a 2ª seja um pensamento
-    interno e a 3ª seja a resposta final do assistente.
+    We can only do this because we know the order of the messages in the list. It's the anthropic format when we allow the thinking mode, wich is the case.
     """
     messages_to_save = []
     i = 0

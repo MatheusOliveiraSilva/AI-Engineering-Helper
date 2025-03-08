@@ -12,8 +12,8 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    sub = Column(String(255), unique=True, index=True)  # ID do Auth0, que pode expirar
-    email = Column(String(255), unique=True, index=True)  # e-mail único e permanente
+    sub = Column(String(255), unique=True, index=True)
+    email = Column(String(255), unique=True, index=True)
     name = Column(String(255), nullable=True)
     picture = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -28,17 +28,11 @@ class UserSession(Base):
     user = relationship("User", backref="sessions")
 
 class ConversationThread(Base):
-    """
-    Agora possui:
-    - messages (JSONB): lista de mensagens (ex.: [("user", "Olá"), ("assistant", "Oi, tudo bem?")])
-    - last_used: armazena a última vez em que a conversa foi atualizada (para ordenação)
-    - session_id + thread_id continuam como antes
-    """
     __tablename__ = "conversation_threads"
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String(255), ForeignKey("user_sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
     thread_id = Column(String(255), nullable=False)
-    messages = Column(JSONB, default=[])  # Armazena o histórico completo
+    messages = Column(JSONB, default=[])
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     last_used = Column(DateTime, default=datetime.datetime.utcnow)
 

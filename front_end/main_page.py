@@ -65,7 +65,7 @@ if "thread_id" not in st.session_state:
 if "thoughts" not in st.session_state:
     st.session_state.thoughts = ""
 
-# ----------------------------------------------------
+# ------------------- Loading Chat History -------------------
 def load_conversations():
     if session_token:
         resp = requests.get(f"{API_URL}/conversation?session_token={session_token}")
@@ -73,7 +73,7 @@ def load_conversations():
             data = resp.json()
             return data["conversations"]
         else:
-            st.error("Erro ao carregar conversas.")
+            st.error("Erro to load chats.")
             return []
     return []
 
@@ -152,7 +152,7 @@ if prompt:
         }
         resp = requests.post(f"{API_URL}/conversation", json=payload_create)
         if resp.status_code != 200:
-            st.error("Erro ao criar conversa no servidor.")
+            st.error("Error to create new conversation.")
         st.session_state.messages.append({"role": "user", "content": prompt})
     else:
         # Se já existe
@@ -185,5 +185,5 @@ if prompt:
     }
     patch_resp = requests.patch(f"{API_URL}/conversation", json=update_payload)
     if patch_resp.status_code != 200:
-        st.error("Erro ao atualizar conversa no servidor.")
+        st.error("Error on updating conversation.")
 

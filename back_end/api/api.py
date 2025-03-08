@@ -38,7 +38,7 @@ def get_db():
         db.close()
 
 # -------------------------------------------------------------------
-# 1) Fluxo de Login com Auth0
+# 1) Login and Session Management Endpoints
 # -------------------------------------------------------------------
 @app.get("/auth/login")
 async def auth_login(request: Request):
@@ -61,10 +61,8 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
     if not email or not sub:
         raise HTTPException(status_code=400, detail="Dados insuficientes para autenticação.")
 
-    # Verifica se o usuário já existe
     user = db.query(User).filter(User.email == email).first()
     if not user:
-        # Cria um novo usuário
         user = User(
             email=email,
             sub=sub,
@@ -75,18 +73,15 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
     else:
-        # Atualiza o sub se necessário
         user.sub = sub
         db.commit()
 
-    # Cria uma nova sessão
     session_token = str(uuid.uuid4())
     new_session = UserSession(session_id=session_token, user_id=user.id)
     db.add(new_session)
     db.commit()
     db.refresh(new_session)
 
-    # Redireciona para o front-end
     response = RedirectResponse(url="http://localhost:8501")
     response.set_cookie(
         key="sub",
@@ -126,7 +121,7 @@ def set_cookie_test(response: Response):
     return {"message": f"Cookie 'sub' set to {test_value}"}
 
 # -------------------------------------------------------------------
-# 2) Modelos (Pydantic) p/ Criar e Atualizar Conversa
+# 2) BaseModels to chat history creation
 # -------------------------------------------------------------------
 class ConversationCreate(BaseModel):
     session_id: str
@@ -134,15 +129,13 @@ class ConversationCreate(BaseModel):
     first_message_role: str = "user"
     first_message_content: str
 
-# ADICIONE ESTE ESQUEMA:
 class ConversationUpdate(BaseModel):
     thread_id: str
-    # Aqui definimos que "messages" é uma lista de tuplas (role, content).
-    # Se estiver usando dicionários, troque por: List[dict]
-    messages: List[Tuple[str, str]]
+    # We defined that "messages" is a list of lists [role, content],
+    messages: List[List[str, str]]
 
 # -------------------------------------------------------------------
-# 3) Endpoints de Sessão (Exemplo)
+# 3) Session Creating/Updating Endpoints
 # -------------------------------------------------------------------
 @app.post("/session")
 def create_session(response: Response, db: Session = Depends(get_db)):
@@ -166,18 +159,17 @@ def get_session(session_token: str, db: Session = Depends(get_db)):
     }
 
 # -------------------------------------------------------------------
-# 4) Endpoints de Conversa
+# 4) Chat Creating/Updating Endpoints
 # -------------------------------------------------------------------
 @app.post("/conversation")
 def add_conversation(data: ConversationCreate, db: Session = Depends(get_db)):
     """
-    Cria uma nova conversa, com a 1ª mensagem no campo `messages`.
+    Create a new conversation thread in the database and save the first message.
     """
     session_obj = db.query(UserSession).filter(UserSession.session_id == data.session_id).first()
     if not session_obj:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Monta a lista de mensagens inicial, ex.: [("user", "Olá, tudo bem?")]
     initial_messages = [(data.first_message_role, data.first_message_content)]
 
     new_conv = ConversationThread(
@@ -202,7 +194,7 @@ def add_conversation(data: ConversationCreate, db: Session = Depends(get_db)):
 @app.patch("/conversation")
 def update_conversation(data: ConversationUpdate, db: Session = Depends(get_db)):
     """
-    Atualiza a conversa, substituindo o campo 'messages'
+    Update chat history in database with the new messages.
     """
     conversation = db.query(ConversationThread).filter(
         ConversationThread.thread_id == data.thread_id
@@ -211,7 +203,6 @@ def update_conversation(data: ConversationUpdate, db: Session = Depends(get_db))
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    # Substitui completamente as mensagens antigas pelas novas
     conversation.messages = data.messages
     conversation.last_used = datetime.datetime.utcnow()
 

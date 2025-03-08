@@ -5,7 +5,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from chatbot.nodes.nodes import ChatbotsNodes
 from chatbot.states.chatbot_states import ChatbotState
 
-# Inicializa o agente
+# Node class
 ChatbotsNodes = ChatbotsNodes()
 
 memory = MemorySaver()
@@ -37,7 +37,7 @@ def get_response(msg):
                             final_response += item.content[0]["text"]
         time.sleep(0.05)
 
-    return thoughts, final_response  # Retorna pensamentos como uma única string
+    return thoughts, final_response
 
 if __name__ == "__main__":
     while True:
@@ -49,8 +49,8 @@ if __name__ == "__main__":
 
         # Exibir pensamentos
         if thoughts.strip():
-            print("\n🤖 Pensamentos do modelo:\n💭", thoughts)
+            print("\n🤖 Model's Thought:\n💭", thoughts)
 
         # Exibir resposta final
         if response.strip():
-            print(f"\nBot: {response}")
+            print(f"\n🤖 Bot answer: {response}")
