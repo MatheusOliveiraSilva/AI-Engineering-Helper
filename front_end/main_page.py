@@ -1,3 +1,10 @@
+import sys
+import os
+
+# Get the base directory and append to sys.path to allow imports
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(BASE_DIR)
+
 import streamlit as st
 import os
 import uuid
@@ -118,7 +125,6 @@ for msg in st.session_state.messages:
 prompt = st.chat_input("Chat with me")
 
 if prompt:
-    # Se não existir thread_id, cria com POST /conversation
     if st.session_state.thread_id is None:
         st.session_state.thread_id = (session_token or "") + str(uuid.uuid4())
         conversation_theme = summary_conversation_theme(prompt)
@@ -140,20 +146,16 @@ if prompt:
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Chama o LLM
     memory_config = {"configurable": {"thread_id": st.session_state.thread_id}}
     with st.chat_message("assistant"):
         final_response = stream_assistant_response(prompt, graph, memory_config)
 
     st.session_state.messages.append({"role": "assistant_response", "content": final_response})
 
-    # --- PEGA O ESTADO FINAL DO GRAPH ---
     full_msg_objects = graph.get_state(memory_config).values["messages"]
 
-    # Converte p/ ex: [("user","..."), ("assistant_thought","..."), ("assistant_response","...")]
     final_converted = convert_messages_to_save(full_msg_objects)
 
-    # Patch
     update_payload = {
         "thread_id": st.session_state.thread_id,
         "messages": final_converted
