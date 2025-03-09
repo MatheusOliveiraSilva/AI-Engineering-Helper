@@ -37,14 +37,14 @@ class EmbeddingConfig:
         if self.provider == "azure":
             instanced_model = AzureOpenAIEmbeddings(
                 model=embedding_model,
-                openai_api_key=os.getenv("OPENAI_API_KEY"),
-                openai_api_version=os.getenv("OPENAI_API_VERSION"),
+                openai_api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+                openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
                 openai_api_base=os.getenv("AZURE_OPENAI_BASE_URL")
             )
         if self.provider == "openai":
             instanced_model = OpenAIEmbeddings(
                 model=embedding_model,
-                openai_api_key=os.getenv("OLD_OPENAI_API_KEY")
+                openai_api_key=os.getenv("OPENAI_API_KEY")
             )
 
         # Setup more models if needed (and add the providers and the models in check functions).

@@ -65,5 +65,5 @@ if __name__ == "__main__":
         metric='dotproduct',
         directory=path,
         embedding_model_name='text-embedding-3-large',
-        preprocessing_technique='contextual-embedding'
+        # preprocessing_technique='contextual-embedding'
     )
