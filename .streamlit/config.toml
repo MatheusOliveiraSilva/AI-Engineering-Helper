@@ -1,3 +1,6 @@
+[general]
+setup_run = true
+
 [server]
 headless = true
 

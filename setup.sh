@@ -1,11 +1,12 @@
 #!/bin/bash
-echo "[SETUP] Instalando dependências..."
-pip install -r requirements.txt
+echo "[SETUP] Removendo pacotes obsoletos..."
+pip uninstall -y pinecone-plugin-inference pinecone || echo "Pacotes não encontrados, continuando..."
 
-pip uninstall -y pinecone-plugin-inference || echo "Pacote não encontrado, continuando..."
+echo "[SETUP] Instalando dependências..."
+pip install --no-cache-dir -r requirements.txt
 
 echo "[SETUP] Baixando documentos..."
 chmod +x scripts/download_documents.sh
-./scripts/download_documents.sh || echo "Falha ao baixar documentos, seguindo sem eles..."
+./scripts/download_documents.sh || echo "⚠️ Falha ao baixar documentos, seguindo sem eles..."
 
 echo "[SETUP] Pronto!"
