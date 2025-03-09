@@ -20,7 +20,7 @@ langchain_community
 oracledb
 progress
 progress-bar
-pinecone
+pinecone[grpc]
 pypdf
 unstructured
 unstructured[pdf]
