@@ -1,10 +1,16 @@
+import os
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.postgresql import JSONB
 import datetime
+from dotenv import load_dotenv
 
-DATABASE_URL = "postgresql://matheussilva:password@localhost/users_chat_history"
+load_dotenv(dotenv_path="../../.env")
+
+DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
