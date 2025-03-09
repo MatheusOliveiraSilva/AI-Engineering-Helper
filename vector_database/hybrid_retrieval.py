@@ -6,6 +6,7 @@ from langchain_core.documents import Document
 from vector_database.pinecone_utils import PineconeUtils
 from preprocessment.embedding.embedding_config import EmbeddingConfig
 from langchain_community.retrievers import PineconeHybridSearchRetriever
+from pathlib import Path
 from typing import List
 
 class HybridSearchRetriever:
@@ -40,7 +41,11 @@ class HybridSearchRetriever:
         )
 
     def get_sparse_encoder(self, index_name):
-        return BM25Encoder().load("bm25_values.json") if os.path.exists("bm25_values.json") \
+        # get this file absolute path
+        current_dir = Path(__file__).resolve().parent
+        sparse_encoder_weights = current_dir / "bm25_values.json"
+
+        return BM25Encoder().load(sparse_encoder_weights) if sparse_encoder_weights.exists() \
                                                       else self.create_sparse_encoder_tdif(index_name)
 
     @staticmethod
@@ -77,8 +82,6 @@ class HybridSearchRetriever:
 
         encoder = BM25Encoder().load("bm25_values.json")
 
-        # delete .json
-        os.remove("bm25_values.json")
         return encoder
 
     def retrieve(self, query: str) -> List[Document]:
