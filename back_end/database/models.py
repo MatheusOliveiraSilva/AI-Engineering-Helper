@@ -32,6 +32,7 @@ class ConversationThread(Base):
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String(255), ForeignKey("user_sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
     thread_id = Column(String(255), nullable=False)
+    thread_name = Column(String(255), nullable=False)
     messages = Column(JSONB, default=[])
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     last_used = Column(DateTime, default=datetime.datetime.utcnow)

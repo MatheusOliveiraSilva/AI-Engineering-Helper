@@ -5,7 +5,7 @@ from streamlit_javascript import st_javascript
 import requests
 
 from chatbot.graph.chatbot_graph import graph
-from front_end.utils.message_utils import stream_assistant_response, convert_messages_to_save
+from front_end.utils.message_utils import stream_assistant_response, convert_messages_to_save, summary_conversation_theme
 
 st.set_page_config(layout="wide")
 
@@ -88,7 +88,7 @@ if st.sidebar.button("New Chat"):
 conversations_list = load_conversations()
 if conversations_list:
     for conv in conversations_list:
-        label = f"Thread: {conv['thread_id'][:8]}..."
+        label = f"{conv['thread_name']}"
         if st.sidebar.button(label, key=conv["thread_id"]):
             st.session_state.thread_id = conv["thread_id"]
             st.session_state.messages = []
@@ -117,36 +117,15 @@ for msg in st.session_state.messages:
 
 prompt = st.chat_input("Chat with me")
 
-# ---------- Função de merge -----------
-def merge_local_with_graph(local_msgs, graph_msgs):
-    """
-    local_msgs -> [{"role":"assistant_thought","content":"Pensamento..."}, ...]
-    graph_msgs -> [("assistant_response","Resposta final"), ...]
-
-    Queremos uma lista final do tipo [("assistant_thought","..."),("assistant_response","..."),...].
-    """
-
-    # Converte local_msgs p/ tuplas
-    local_tuples = []
-    for m in local_msgs:
-        local_tuples.append((m["role"], m["content"]))
-
-    final_list = list(graph_msgs)
-
-    # Se o `assistant_thought` de local não estiver no final_list, adiciona
-    for tup in local_tuples:
-        if tup not in final_list:
-            final_list.append(tup)
-
-    return final_list
-
 if prompt:
     # Se não existir thread_id, cria com POST /conversation
     if st.session_state.thread_id is None:
         st.session_state.thread_id = (session_token or "") + str(uuid.uuid4())
+        conversation_theme = summary_conversation_theme(prompt)
         payload_create = {
             "session_id": session_token,
             "thread_id": st.session_state.thread_id,
+            "thread_name": conversation_theme,
             "first_message_role": "user",
             "first_message_content": prompt
         }
@@ -174,14 +153,10 @@ if prompt:
     # Converte p/ ex: [("user","..."), ("assistant_thought","..."), ("assistant_response","...")]
     final_converted = convert_messages_to_save(full_msg_objects)
 
-    # MERGE: local (incluindo assistant_thought) + final do graph
-    merged_list = merge_local_with_graph(st.session_state.messages, final_converted)
-    print("DEBUG merged_list:", merged_list)  # ou st.write(merged_list)
-
     # Patch
     update_payload = {
         "thread_id": st.session_state.thread_id,
-        "messages": merged_list
+        "messages": final_converted
     }
     patch_resp = requests.patch(f"{API_URL}/conversation", json=update_payload)
     if patch_resp.status_code != 200:

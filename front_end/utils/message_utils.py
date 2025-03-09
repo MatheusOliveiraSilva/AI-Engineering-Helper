@@ -1,6 +1,11 @@
 import time
 import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessageChunk, AIMessage
+from langchain_core.output_parsers import StrOutputParser
+from llm_config.llm_model_config import LLMModelConfig
+
+model_config = LLMModelConfig(provider="openai")
+summary_llm = model_config.get_llm_model(model_name="gpt-4o-mini-2024-07-18")
 
 def stream_assistant_response(prompt, graph, memory_config) -> str:
     """
@@ -75,3 +80,19 @@ def convert_messages_to_save(messages: list) -> list:
             i += 1
 
     return messages_to_save
+
+def summary_conversation_theme(prompt: str) -> str:
+    """
+    Summarize the conversation theme based on the user's first message.
+    """
+
+    summary_prompt = "Take the user input prompt and resume it in a few words as the main theme of the conversation. Try to use less min2 max5 words. User prompt: {prompt}"
+
+    chain = summary_llm | StrOutputParser()
+
+    theme = chain.invoke(summary_prompt.format(prompt=prompt))
+
+    return theme if theme else "General Chat"
+
+if __name__ == "__main__":
+    print(summary_conversation_theme("Talk about HyDE"))

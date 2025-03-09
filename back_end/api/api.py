@@ -126,13 +126,14 @@ def set_cookie_test(response: Response):
 class ConversationCreate(BaseModel):
     session_id: str
     thread_id: str
+    thread_name: str
     first_message_role: str = "user"
     first_message_content: str
 
 class ConversationUpdate(BaseModel):
     thread_id: str
     # We defined that "messages" is a list of lists [role, content],
-    messages: List[List[str, str]]
+    messages: List[List[str]]
 
 # -------------------------------------------------------------------
 # 3) Session Creating/Updating Endpoints
@@ -175,6 +176,7 @@ def add_conversation(data: ConversationCreate, db: Session = Depends(get_db)):
     new_conv = ConversationThread(
         session_id=data.session_id,
         thread_id=data.thread_id,
+        thread_name=data.thread_name,
         messages=initial_messages,
         created_at=datetime.datetime.utcnow(),
         last_used=datetime.datetime.utcnow()
@@ -186,6 +188,7 @@ def add_conversation(data: ConversationCreate, db: Session = Depends(get_db)):
         "id": new_conv.id,
         "session_id": new_conv.session_id,
         "thread_id": new_conv.thread_id,
+        "thread_name": new_conv.thread_name,
         "messages": new_conv.messages,
         "created_at": new_conv.created_at,
         "last_used": new_conv.last_used
@@ -211,6 +214,7 @@ def update_conversation(data: ConversationUpdate, db: Session = Depends(get_db))
     return {
         "id": conversation.id,
         "thread_id": conversation.thread_id,
+        "thread_name": conversation.thread_name,
         "messages": conversation.messages,
         "session_id": conversation.session_id,
         "created_at": conversation.created_at,
@@ -229,6 +233,7 @@ def get_conversations(session_token: str, db: Session = Depends(get_db)):
                 "id": conv.id,
                 "session_id": conv.session_id,
                 "thread_id": conv.thread_id,
+                "thread_name": conv.thread_name,
                 "messages": conv.messages,
                 "created_at": conv.created_at,
                 "last_used": conv.last_used
