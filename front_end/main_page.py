@@ -150,15 +150,13 @@ if prompt:
 
     memory_config = {"configurable": {"thread_id": st.session_state.thread_id}}
 
-    # Aqui usamos a nova função de streaming
     with st.chat_message("assistant"):
         final_response = stream_assistant_response(prompt, memory_config)
-        # Se quiser, no final, você pode colocar algo fixo ou "fim da resposta"
         # st.markdown(final_response)
 
     st.session_state.messages.append({"role": "assistant_response", "content": final_response})
 
-    # Depois atualizamos a conversa
+
     chat_history = get_chat_history(memory_config)
     update_payload = {
         "thread_id": st.session_state.thread_id,

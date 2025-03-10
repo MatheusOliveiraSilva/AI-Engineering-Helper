@@ -2,6 +2,7 @@ import time
 import json
 import requests
 import streamlit as st
+import re
 from langchain_core.messages import HumanMessage, AIMessageChunk, AIMessage
 from langchain_core.output_parsers import StrOutputParser
 
@@ -12,16 +13,73 @@ summary_llm = model_config.get_llm_model(model_name="gpt-4o-mini-2024-07-18")
 
 API_URL = "http://localhost:5005"
 
+def sanitize_tool_content(content: str) -> str:
+    return content.replace("```", "")
+
+def preprocess_tool_result(tool_result: str) -> str:
+    # Remove todas as marcações de código (``` e ```json, ```sql, etc.)
+    # O regex abaixo remove qualquer sequência ``` seguida de caracteres não-espaço (opcional)
+    tool_result_no_fence = re.sub(r'```(\w+)?', '', tool_result).strip()
+
+    # Remover linhas isoladas que sejam apenas "json", "sql", etc.
+    # Você pode ajustar essa lista conforme necessário
+    tool_result_no_fence = re.sub(
+        r'^(json|sql|python)\s*$',
+        '',
+        tool_result_no_fence,
+        flags=re.MULTILINE | re.IGNORECASE
+    )
+
+    # Agora prossegue com a mesma lógica anterior
+    json_match = re.search(r'(\{.*\})$', tool_result_no_fence, re.DOTALL)
+    if json_match:
+        tool_result_json_str = json_match.group(1)
+    else:
+        tool_result_json_str = ""
+
+    preceding = tool_result_no_fence[:json_match.start()] if json_match else tool_result_no_fence
+
+    # Split nas linhas
+    lines = preceding.splitlines()
+    lines = [line.strip() for line in lines if line.strip()]
+
+    # Se houver pelo menos 1 linha, a primeira consideramos como "Tool input"
+    if lines:
+        tool_input = lines[0].strip("[]\"'")
+    else:
+        tool_input = ""
+
+    # As linhas seguintes até a próxima linha em branco (ou fim) consideramos como SQL
+    sql_view_lines = []
+    for line in lines[1:]:
+        if not line.strip():
+            break
+        sql_view_lines.append(line)
+    sql_view = "\n".join(sql_view_lines)
+
+    # Tenta converter o JSON final para objeto
+    try:
+        # Substitui aspas simples por duplas para ser válido em JSON
+        json_str = tool_result_json_str.replace("'", "\"")
+        tool_result_json = json.loads(json_str)
+        pretty_tool_result = json.dumps(tool_result_json, indent=4, ensure_ascii=False)
+    except Exception:
+        pretty_tool_result = tool_result_json_str
+
+    output = f"**Tool input:** `{tool_input}`\n\n"
+    output += f"**SQL View:**\n```\n{sql_view}\n```\n\n"
+    output += f"**Tool Result:**\n```\n{pretty_tool_result}\n```"
+    return output
+
 def stream_assistant_response(prompt, memory_config) -> str:
-    """
-    Faz a requisição em streaming e atualiza a interface do Streamlit em tempo real.
-    """
     url = f"{API_URL}/chat/query_stream"
+
     final_response = ""
     tool_result = ""
+    tool_in_progress = False
+    tool_placeholder = None
 
-    # Apenas um placeholder para exibir o conteúdo à medida que chega
-    message_placeholder = st.empty()
+    response_placeholder = st.empty()
 
     with requests.post(url, json={"input": prompt, "memory_config": memory_config}, stream=True) as response:
         for line in response.iter_lines():
@@ -32,31 +90,45 @@ def stream_assistant_response(prompt, memory_config) -> str:
                     try:
                         payload = json.loads(data_str)
                     except Exception as e:
-                        st.error(f"Erro ao processar chunk: {e}")
+                        st.error(f"Erro ao processar chunk SSE: {e}")
                         continue
 
                     content = payload.get("content", "")
                     meta = payload.get("meta", {})
 
-                    # Se for resultado de tool
-                    if meta.get("langgraph_node") == "tools":
-                        tool_result += content
-                        message_placeholder.markdown(
-                            f"**[Resultado da ferramenta]**\n\n```\n{tool_result}\n```"
-                        )
-                    else:
-                        final_response += content
-                        message_placeholder.markdown(final_response)
+                    node = meta.get("langgraph_node")
 
-                    time.sleep(0.05)
+                    if node == "tools":
+                        if not tool_in_progress:
+                            tool_in_progress = True
+                            tool_placeholder = st.info("Executando tool...")
+
+                        tool_result += content
+
+                    else:
+                        if tool_in_progress:
+                            if tool_placeholder:
+                                tool_placeholder.empty()
+                            tool_in_progress = False
+
+                            if tool_result.strip():
+                                formatted_tool_output = preprocess_tool_result(tool_result)
+                                st.markdown(
+                                    f"<details><summary>Resultado da ferramenta</summary>\n\n{formatted_tool_output}\n\n</details>",
+                                    unsafe_allow_html=True
+                                )
+                            # Reseta as variáveis de tool
+                            tool_result = ""
+                            tool_placeholder = None
+
+                        # Agora tratamos este chunk como texto normal do assistente
+                        final_response += content
+                        response_placeholder.markdown(final_response)
+
+                    # Pequena pausa para permitir ao Streamlit renderizar gradualmente
+                    time.sleep(0.03)
 
     return final_response
-
-
-# def stream_assistant_response(prompt, memory_config) -> str:
-#     # make a post request to the API
-#     response = requests.post(f"{API_URL}/chat/query", json={"input": prompt, "memory_config": memory_config})
-#     return response.json()["answer"]
 
 def get_chat_history(memory_config) -> list:
     """
