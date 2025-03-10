@@ -12,58 +12,67 @@ summary_llm = model_config.get_llm_model(model_name="gpt-4o-mini-2024-07-18")
 
 API_URL = "http://localhost:5005"
 
-# def stream_assistant_response(prompt, graph, memory_config) -> str:
-#     """
-#     Stream assistant answer displaying thoughts in real time and, when the final
-#     answer starts, replacing thoughts with an expander. Returns the final generated
-#     answer.
-#     """
-#     final_response = ""
-#     streaming_thoughts = ""
-#     thinking_expander_created = False
-#
-#     # Reinicia os pensamentos para a interação atual (não acumula com interações anteriores)
-#     st.session_state.thoughts = ""
-#
-#     # Placeholders para atualização em tempo real
-#     final_placeholder = st.empty()
-#     thinking_placeholder = st.empty()
-#
-#     for response in graph.stream(
-#             {"messages": [HumanMessage(content=prompt)]},
-#             stream_mode="messages",
-#             config=memory_config
-#     ):
-#         if isinstance(response, tuple):
-#             for item in response:
-#                 if isinstance(item, AIMessageChunk) and item.content:
-#
-#                     chunk = item.content[0]
-#                     if "type" in chunk:
-#                         if chunk["type"] == "thinking" and "thinking" in chunk:
-#                             if not thinking_expander_created:
-#                                 streaming_thoughts += chunk["thinking"]
-#                                 thinking_placeholder.markdown(
-#                                     f"**Model is thinking...**\n\n{streaming_thoughts}"
-#                                 )
-#                         elif chunk["type"] == "text" and "text" in chunk:
-#                             if not thinking_expander_created:
-#                                 thinking_placeholder.empty()
-#                                 st.session_state.thoughts = streaming_thoughts
-#                                 st.expander("🤖 Model's Thoughts", expanded=False).markdown(
-#                                     st.session_state.thoughts
-#                                 )
-#                                 thinking_expander_created = True
-#                             final_response += chunk["text"]
-#                             final_placeholder.markdown(final_response)
-#         time.sleep(0.3)
-#
-#     return final_response
-
 def stream_assistant_response(prompt, memory_config) -> str:
-    # make a post request to the API
-    response = requests.post(f"{API_URL}/chat/query", json={"input": prompt, "memory_config": memory_config})
-    return response.json()["answer"]
+    """
+    Realiza uma chamada ao endpoint de streaming (/chat/query_stream) e atualiza a interface
+    em tempo real. Dependendo do tipo de mensagem (tool call, resultado de tool ou resposta final),
+    atualiza os placeholders correspondentes.
+    """
+    url = f"{API_URL}/chat/query_stream"
+    final_response = ""
+    tool_result = ""
+    tool_message_displayed = False
+
+    # Placeholders para atualização em tempo real na UI
+    final_placeholder = st.empty()       # para a resposta final do modelo
+    tool_placeholder = st.empty()        # para mensagens de tool (status e resultado)
+
+    with requests.post(url, json={"input": prompt, "memory_config": memory_config}, stream=True) as response:
+        for line in response.iter_lines():
+            if line:
+                decoded_line = line.decode("utf-8")
+                # O padrão SSE envia linhas no formato "data: <json>\n\n"
+                if decoded_line.startswith("data: "):
+                    data_str = decoded_line[6:]
+                    try:
+                        payload = json.loads(data_str)
+                    except Exception as e:
+                        st.error("Erro ao processar chunk: " + str(e))
+                        continue
+
+                    content = payload.get("content", "")
+                    meta = payload.get("meta", {})
+
+                    # Se for mensagem do nó "assistant" indicando início da chamada de uma tool
+                    if meta.get("langgraph_node") == "assistant" and \
+                       meta.get("langgraph_triggers") and "start:assistant" in meta.get("langgraph_triggers"):
+                        # Aqui, você pode tentar extrair o nome da tool (caso a informação esteja disponível)
+                        tool_name = "desconhecida"
+                        if not tool_message_displayed:
+                            tool_placeholder.info(f"Executando tool {tool_name}...")
+                            tool_message_displayed = True
+
+                    # Se for mensagem do nó "tools", trata como resultado da ferramenta
+                    elif meta.get("langgraph_node") == "tools":
+                        tool_result += content
+                        # Atualiza um expander via HTML com tag <details> para exibir o resultado da tool
+                        tool_placeholder.markdown(
+                            f"**Resultado da ferramenta (clique para expandir):**\n\n"
+                            f"<details><summary>Clique para ver</summary>\n\n{tool_result}\n\n</details>",
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        # Caso contrário, trata como parte da resposta final do modelo
+                        final_response += content
+                        final_placeholder.markdown(final_response)
+                    # Pequena pausa para suavizar a atualização (opcional)
+                    time.sleep(0.1)
+    return final_response
+
+# def stream_assistant_response(prompt, memory_config) -> str:
+#     # make a post request to the API
+#     response = requests.post(f"{API_URL}/chat/query", json={"input": prompt, "memory_config": memory_config})
+#     return response.json()["answer"]
 
 def get_chat_history(memory_config) -> list:
     """

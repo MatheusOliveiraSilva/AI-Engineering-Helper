@@ -143,7 +143,6 @@ if prompt:
             st.error("Error to create new conversation.")
         st.session_state.messages.append({"role": "user", "content": prompt})
     else:
-        # Se já existe
         st.session_state.messages.append({"role": "user", "content": prompt})
 
     with st.chat_message("user"):
@@ -151,7 +150,7 @@ if prompt:
 
     memory_config = {"configurable": {"thread_id": st.session_state.thread_id}}
 
-    #with st.chat_message("assistant"):
+    # Chamada à função de streaming que atualiza a UI conforme os chunks chegam
     final_response = stream_assistant_response(prompt, memory_config)
     st.chat_message("assistant").markdown(final_response)
 
