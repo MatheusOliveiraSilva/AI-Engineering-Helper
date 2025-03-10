@@ -1,3 +1,5 @@
+streamlit
+torch==2.0.1
 uvicorn
 fastapi
 pydantic==2.7.4
@@ -26,7 +28,6 @@ unstructured[pdf]
 langchain_pinecone
 pinecone-text
 pinecone-notebooks
-streamlit
 fastapi
 sqlalchemy
 psycopg2-binary
