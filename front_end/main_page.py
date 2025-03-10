@@ -109,6 +109,11 @@ st.title("AI Engineering Q&A")
 for msg in st.session_state.messages:
     role = msg["role"]
     content = msg["content"]
+
+    # Se o conteúdo for vazio ou apenas espaços, pula
+    if not content.strip():
+        continue
+
     if role == "tool_response":
         with st.expander("Tool Response:", expanded=False):
             st.markdown(content)
