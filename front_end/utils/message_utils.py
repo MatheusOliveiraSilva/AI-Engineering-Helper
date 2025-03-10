@@ -14,60 +14,44 @@ API_URL = "http://localhost:5005"
 
 def stream_assistant_response(prompt, memory_config) -> str:
     """
-    Realiza uma chamada ao endpoint de streaming (/chat/query_stream) e atualiza a interface
-    em tempo real. Dependendo do tipo de mensagem (tool call, resultado de tool ou resposta final),
-    atualiza os placeholders correspondentes.
+    Faz a requisição em streaming e atualiza a interface do Streamlit em tempo real.
     """
     url = f"{API_URL}/chat/query_stream"
     final_response = ""
     tool_result = ""
-    tool_message_displayed = False
 
-    # Placeholders para atualização em tempo real na UI
-    final_placeholder = st.empty()       # para a resposta final do modelo
-    tool_placeholder = st.empty()        # para mensagens de tool (status e resultado)
+    # Apenas um placeholder para exibir o conteúdo à medida que chega
+    message_placeholder = st.empty()
 
     with requests.post(url, json={"input": prompt, "memory_config": memory_config}, stream=True) as response:
         for line in response.iter_lines():
             if line:
                 decoded_line = line.decode("utf-8")
-                # O padrão SSE envia linhas no formato "data: <json>\n\n"
                 if decoded_line.startswith("data: "):
                     data_str = decoded_line[6:]
                     try:
                         payload = json.loads(data_str)
                     except Exception as e:
-                        st.error("Erro ao processar chunk: " + str(e))
+                        st.error(f"Erro ao processar chunk: {e}")
                         continue
 
                     content = payload.get("content", "")
                     meta = payload.get("meta", {})
 
-                    # Se for mensagem do nó "assistant" indicando início da chamada de uma tool
-                    if meta.get("langgraph_node") == "assistant" and \
-                       meta.get("langgraph_triggers") and "start:assistant" in meta.get("langgraph_triggers"):
-                        # Aqui, você pode tentar extrair o nome da tool (caso a informação esteja disponível)
-                        tool_name = "desconhecida"
-                        if not tool_message_displayed:
-                            tool_placeholder.info(f"Executando tool {tool_name}...")
-                            tool_message_displayed = True
-
-                    # Se for mensagem do nó "tools", trata como resultado da ferramenta
-                    elif meta.get("langgraph_node") == "tools":
+                    # Se for resultado de tool
+                    if meta.get("langgraph_node") == "tools":
                         tool_result += content
-                        # Atualiza um expander via HTML com tag <details> para exibir o resultado da tool
-                        tool_placeholder.markdown(
-                            f"**Resultado da ferramenta (clique para expandir):**\n\n"
-                            f"<details><summary>Clique para ver</summary>\n\n{tool_result}\n\n</details>",
-                            unsafe_allow_html=True,
+                        message_placeholder.markdown(
+                            f"**[Resultado da ferramenta]**\n\n```\n{tool_result}\n```"
                         )
                     else:
-                        # Caso contrário, trata como parte da resposta final do modelo
                         final_response += content
-                        final_placeholder.markdown(final_response)
-                    # Pequena pausa para suavizar a atualização (opcional)
-                    time.sleep(0.1)
+                        message_placeholder.markdown(final_response)
+
+                    time.sleep(0.05)
+
     return final_response
+
 
 # def stream_assistant_response(prompt, memory_config) -> str:
 #     # make a post request to the API

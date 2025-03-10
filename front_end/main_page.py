@@ -150,19 +150,22 @@ if prompt:
 
     memory_config = {"configurable": {"thread_id": st.session_state.thread_id}}
 
-    # Chamada à função de streaming que atualiza a UI conforme os chunks chegam
-    final_response = stream_assistant_response(prompt, memory_config)
-    st.chat_message("assistant").markdown(final_response)
+    # Aqui usamos a nova função de streaming
+    with st.chat_message("assistant"):
+        final_response = stream_assistant_response(prompt, memory_config)
+        # Se quiser, no final, você pode colocar algo fixo ou "fim da resposta"
+        # st.markdown(final_response)
 
     st.session_state.messages.append({"role": "assistant_response", "content": final_response})
 
+    # Depois atualizamos a conversa
     chat_history = get_chat_history(memory_config)
     update_payload = {
         "thread_id": st.session_state.thread_id,
         "messages": chat_history
     }
-
     patch_resp = requests.patch(f"{API_URL}/conversation", json=update_payload)
     if patch_resp.status_code != 200:
         st.error("Error on updating conversation.")
+
 
