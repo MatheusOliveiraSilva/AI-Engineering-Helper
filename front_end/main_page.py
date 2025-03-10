@@ -11,8 +11,8 @@ import uuid
 from streamlit_javascript import st_javascript
 import requests
 
-from chatbot.graph.chatbot_graph import graph
-from front_end.utils.message_utils import stream_assistant_response, convert_messages_to_save, summary_conversation_theme
+from front_end.utils.message_utils import (stream_assistant_response, summary_conversation_theme,
+                                           get_chat_history)
 
 st.set_page_config(layout="wide")
 
@@ -37,7 +37,7 @@ if os.path.exists(css_path):
         css_content = f.read()
     st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
 
-API_URL = "http://localhost:8000"
+API_URL = "http://localhost:5005"
 
 raw_cookies = st_javascript("document.cookie")
 cookies_dict = {}
@@ -109,8 +109,11 @@ st.title("AI Engineering Q&A")
 for msg in st.session_state.messages:
     role = msg["role"]
     content = msg["content"]
-    if role == "assistant_thought":
-        with st.expander("Model Thoughts", expanded=False):
+    if role == "tool_response":
+        with st.expander("Tool Response:", expanded=False):
+            st.markdown(content)
+    elif role == "tool_call":
+        with st.chat_message("assistant"):
             st.markdown(content)
     elif role == "assistant_response":
         with st.chat_message("assistant"):
@@ -147,19 +150,19 @@ if prompt:
         st.markdown(prompt)
 
     memory_config = {"configurable": {"thread_id": st.session_state.thread_id}}
-    with st.chat_message("assistant"):
-        final_response = stream_assistant_response(prompt, graph, memory_config)
+
+    #with st.chat_message("assistant"):
+    final_response = stream_assistant_response(prompt, memory_config)
+    st.chat_message("assistant").markdown(final_response)
 
     st.session_state.messages.append({"role": "assistant_response", "content": final_response})
 
-    full_msg_objects = graph.get_state(memory_config).values["messages"]
-
-    final_converted = convert_messages_to_save(full_msg_objects)
-
+    chat_history = get_chat_history(memory_config)
     update_payload = {
         "thread_id": st.session_state.thread_id,
-        "messages": final_converted
+        "messages": chat_history
     }
+
     patch_resp = requests.patch(f"{API_URL}/conversation", json=update_payload)
     if patch_resp.status_code != 200:
         st.error("Error on updating conversation.")
