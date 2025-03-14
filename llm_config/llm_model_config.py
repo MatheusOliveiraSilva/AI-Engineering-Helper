@@ -13,7 +13,7 @@ class LLMModelConfig:
                  ) -> None:
 
         self.provider = provider
-        self.OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+        self.OPENAI_API_KEY = os.getenv('OLD_OPENAI_API_KEY')
         self.ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 
     def get_llm_model(self, model_name, temperature=0.7, max_tokens=1000, **kwargs):
